@@ -1,0 +1,122 @@
+#include "detector.hh"
+
+MySensitiveDetector::MySensitiveDetector(G4String name): G4VSensitiveDetector(name)
+{
+  //defining quantum efficency
+  quEff = new G4PhysicsOrderedFreeVector();
+
+  //putting the efficency data into this vector
+  std::ifstream datafile;
+  datafile.open("eff.dat");
+
+  //reading the file line by line and putting efficiency values into our vector quEff
+  while(1)
+  {
+    G4double wlen, queff; 
+    //we are saying that the first column of our file is the wave lenght and the second corresponds to quantum efficency
+    datafile >> wlen >> queff;
+
+    //whwn we have read all the file the loop breaks
+    if(datafile.eof())
+      break;
+
+    //G4cout << wlen << " " << queff << G4endl;
+
+    //filling our physics vector (we divide queff by 100 because we want to have values between 0 and 1)
+    quEff->InsertValues(wlen, queff/100.);
+
+  }
+
+  //closing file
+  datafile.close();
+
+  //interpolating data points. now set it to false because our wave lenght are in nm (the distance between data point is really small), so we can just use a linear interpolation
+  quEff->SetSpline(false);
+
+}
+
+MySensitiveDetector::~MySensitiveDetector()
+{}
+
+//everytime a photon hits our sensitive detector the class G4Track is activated and the info obtained are stored in our tuples
+
+G4bool MySensitiveDetector::ProcessHits(G4Step *aStep, G4TouchableHistory *ROhist)
+{
+
+  //getting information about the track that enters our sensitive volume
+  G4Track *track = aStep->GetTrack();
+
+  //as soon as the photon enters the detector its track isn't propagate anymore (it's used in order to not occupy memory)
+  //track->SetTrackStatus(fStopAndKill);
+
+  
+  //in order to get the information about the photon when it enters our sensitive detector
+  G4StepPoint *preStepPoint = aStep->GetPreStepPoint();
+
+  //in order to get the information about the photon when it leaves our sensitive detector
+  G4StepPoint *postStepPoint = aStep->GetPostStepPoint();
+
+  //getting info about the position of photon when he enters the detector
+  G4ThreeVector posPhoton = preStepPoint->GetPosition();
+
+  //getting info about the momentum of photon when he enters the detector
+  G4ThreeVector momPhoton = preStepPoint->GetMomentum();
+  
+  //calculating th  wave lenght of photons which hit our photosensors (scintillating photons) from their momentum. we will fill a branch of our Tree with wavelenghts so obtained (.mag is used to take the magnitude of the ThreeVector and 1E+03 to have the wlen in nm)
+  G4double wlen = (1.239841939*eV/momPhoton.mag())*1E+03;
+  
+  
+  //print the position of photons that reach the detector. we use it only to check if everything is ok, but actually the detector doesn't tell use the position of the photon, but the position of the sensitive detector (photosensor in this case)hit by the photon
+  //G4cout << "Photon position:" << posPhoton << G4endl;
+  
+  //getting info about the volume 
+  const G4VTouchable *touchable = aStep->GetPreStepPoint()->GetTouchable();
+  
+  //getting the copy number of photosensor hit by the photon
+  G4int copyNo = touchable->GetCopyNumber();
+  
+  //if we want to print the copyNo
+  //G4cout << "Copy Number:" << copyNo << G4endl;
+
+
+  //getting the position of the sensitive detector (in our case it's each photosensor of the matrix)
+  
+  //getting access to the volume
+  G4VPhysicalVolume *physVol = touchable->GetVolume();
+
+  //getting access to the translation of the volume in order to obtain the position of our sensitive detector
+  G4ThreeVector posDetector = physVol->GetTranslation();
+
+  //G4cout << "Detector position:" << posDetector << G4endl;
+
+  G4int evt = G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID();
+
+  G4AnalysisManager *man =  G4AnalysisManager::Instance();
+  
+  //filling the created columns
+
+  //filling Ntuple number 0 with the info about photons which hit our photosensors
+  man->FillNtupleIColumn(0,0, evt);
+  man->FillNtupleDColumn(0,1,posPhoton[0]);
+  man->FillNtupleDColumn(0,2, posPhoton[1]);
+  man->FillNtupleDColumn(0,3,posPhoton[2]);
+  man->FillNtupleDColumn(0,4,wlen);
+  man->AddNtupleRow(0);
+
+  //after calculating the wlen of photon, we calculate the corrisponding quantum efficency for that wlen. then we generate a random number, with a uniform distribution between 0 and 1 and we compare it with quantum efficency for a value of wlen: if the number is smaller then the git is stored
+
+  if(G4UniformRand() < quEff->Value(wlen))
+  {
+
+    //the first column of Ntuple number 1  will contain info about the evnt number (evt), whereas the second, third and fourth the coordinates of the detector (remember that posDetector is a ThreeVector)
+    man->FillNtupleIColumn(1,0, evt);
+    man->FillNtupleDColumn(1,1,posDetector[0]);
+    man->FillNtupleDColumn(1,2, posDetector[1]);
+    man->FillNtupleDColumn(1,3,posDetector[2]);
+    man->AddNtupleRow(1);
+  }
+
+  return true;
+
+}  
+

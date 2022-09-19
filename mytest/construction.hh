@@ -1,0 +1,68 @@
+#ifndef CONSTRUCTION_HH 
+#define CONSTRUCTION_HH
+
+#include "G4VUserDetectorConstruction.hh"
+#include "G4VPhysicalVolume.hh"
+#include "G4LogicalVolume.hh"
+#include "G4Box.hh"
+#include "G4Tubs.hh"
+#include "G4PVPlacement.hh"
+#include "G4NistManager.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4GenericMessenger.hh"
+#include "G4OpticalSurface.hh"
+#include "G4LogicalSkinSurface.hh"
+
+
+#include "detector.hh"
+
+//definition of the class
+class MyDetectorConstruction : public G4VUserDetectorConstruction
+{
+public:
+  MyDetectorConstruction();
+  ~ MyDetectorConstruction();//deconstruct 
+
+  //this function returns fScoringVolume, whics is a G4LogicalVolume* variable, used in order to obtain the energy deposited only in a particular volume and not in all detector
+  G4LogicalVolume *GetScoringVolume() const {return fScoringVolume;}
+  
+  //all the description of the detector has to  be put in this function (it constructs all the detector)
+  virtual  G4VPhysicalVolume *Construct();
+
+private:
+  G4int nCols, nRows;
+  
+  G4double xWorld, yWorld, zWorld;
+
+  //defining variables G4Box *, such as solidWord, directly in the class MyDetectorConstruction, in order to let them accessible also outside the function which creates physWorld 
+  G4Box *solidWorld, *solidRadiator, *solidDetector, *solidScintillator;
+
+ //doing the same with variables G4LogicalVolume * and G4PhysicalVolume *
+  G4LogicalVolume *logicWorld, *logicRadiator, *logicDetector, *logicScintillator;
+  G4VPhysicalVolume *physWorld, *physRadiator, *physDetector, *physScintillator;
+
+  G4GenericMessenger *fMessenger;
+
+  //and also with variables G4Material * and G4Element *
+  G4Material *SiO2, *H2O, *Aerogel, *worldMat, *NaI;
+  G4Element *C ,*Na , *I;
+
+  //defining functions to create cherenkov radiator and scintillator, in order to put what deals with the construction of these detector in generator.cc in these functions
+  void ConstructCherenkov();
+  void ConstructScintillator();
+
+  virtual void ConstructSDandField();
+
+  G4LogicalVolume *fScoringVolume;
+
+  //defining function to define materials
+  void DefineMaterial();
+
+  //defining 2 boolean in order to decide what kind of geometry we want
+  G4bool isCherenkov, isScintillator;
+
+  G4OpticalSurface *mirrorSurface;
+
+};
+
+#endif

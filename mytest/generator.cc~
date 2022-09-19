@@ -1,0 +1,41 @@
+#include "generator.hh"
+
+MyPrimaryGenerator::MyPrimaryGenerator()
+{
+
+  //brackets contain the number of particles per event
+  fParticleGun = new G4ParticleGun(1);
+
+  //defining what kind of particle we want create
+
+  //all the proprieties of the particle we want to use are stored in this table
+  G4ParticleTable *particleTable = G4ParticleTable::GetParticleTable();
+  
+  //obtaining the definition of that particle from the table and inserting it in the variable "particle". we decide to use a generic particle, called geantino and then we can always replace it in a macrofile. if we don't replace, so if we use geantino, then we will take the radioactive dacay of cobalt. To do that we have to use an if clause in the function MyPrimaryGenerator
+  G4ParticleDefinition *particle = particleTable->FindParticle("proton"); 
+
+  //defining where the particle will be created and the direction of its momentum
+  G4ThreeVector pos(0.,0.,0.);
+  G4ThreeVector mom(0.,0.,1.);
+
+  //imposing the position and the direction defined before.Defining its momentum (Geant4 uses MeV) and imposing what kind of particle we want to use
+  fParticleGun->SetParticlePosition(pos);
+  fParticleGun->SetParticleMomentumDirection(mom);
+  fParticleGun->SetParticleMomentum(100.*GeV);
+  fParticleGun->SetParticleDefinition(particle);
+
+}
+
+MyPrimaryGenerator::~MyPrimaryGenerator()
+{
+  delete fParticleGun;
+
+}
+
+void MyPrimaryGenerator::GeneratePrimaries(G4Event *anEvent)
+{
+  
+  //telling Geant4 to generate the primary vertex
+  fParticleGun->GeneratePrimaryVertex(anEvent);
+  
+}
